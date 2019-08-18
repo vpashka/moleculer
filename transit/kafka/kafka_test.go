@@ -32,6 +32,7 @@ var _ = Describe("Kafka Transit", func() {
 	contextA := context.BrokerContext(brokerDelegates)
 	url := KafkaTestHost + ":9092"
 
+	tout := 2 * time.Second
 	stringSize := 50
 	arraySize := 100
 	var longList []interface{}
@@ -42,7 +43,7 @@ var _ = Describe("Kafka Transit", func() {
 
 	Describe("Remote Calls", func() {
 		logLevel := "fatal"
-		transporter := "kafka://" + KafkaTestHost + ":9092"
+		transporter := "kafka://" + url
 
 		var userBroker, profileBroker *broker.ServiceBroker
 		BeforeEach(func() {
@@ -53,7 +54,7 @@ var _ = Describe("Kafka Transit", func() {
 				DiscoverNodeID: func() string {
 					return "user_broker"
 				},
-				RequestTimeout: time.Second,
+				RequestTimeout: tout,
 			})
 			userBroker.Publish(userService())
 
@@ -63,7 +64,7 @@ var _ = Describe("Kafka Transit", func() {
 				DiscoverNodeID: func() string {
 					return "profile_broker"
 				},
-				RequestTimeout: time.Second,
+				RequestTimeout: tout,
 			})
 			profileBroker.Publish(profileService())
 
@@ -80,7 +81,7 @@ var _ = Describe("Kafka Transit", func() {
 			userBroker.Stop()
 			profileBroker.Stop()
 			close(done)
-		}, 3)
+		}, 6)
 
 		It("should fail after brokers are stopped", func(done Done) {
 			userBroker.Start()
@@ -95,7 +96,7 @@ var _ = Describe("Kafka Transit", func() {
 
 			profileBroker.Stop()
 			close(done)
-		}, 3)
+		}, 6)
 	})
 
 	Describe("Start / Stop Cycles.", func() {
@@ -103,13 +104,16 @@ var _ = Describe("Kafka Transit", func() {
 		numberOfLoops := 5
 		loopNumber := 0
 		Measure("Creation of multiple brokers with connect/disconnect cycles running on kafka transporter.", func(bench Benchmarker) {
-			transporter := "kafka://" + KafkaTestHost + ":9092"
+			transporter := "kafka://" + url
 			var userBroker, contactBroker, profileBroker *broker.ServiceBroker
 			bench.Time("brokers creation", func() {
 				userBroker = broker.New(&moleculer.Config{
 					LogLevel:       logLevel,
 					Transporter:    transporter,
-					RequestTimeout: time.Second,
+					RequestTimeout: tout,
+					DiscoverNodeID: func() string {
+						return "user_broker"
+					},
 				})
 				userBroker.Publish(userService())
 				userBroker.Start()
@@ -117,7 +121,10 @@ var _ = Describe("Kafka Transit", func() {
 				contactBroker = broker.New(&moleculer.Config{
 					LogLevel:       logLevel,
 					Transporter:    transporter,
-					RequestTimeout: time.Second,
+					RequestTimeout: tout,
+					DiscoverNodeID: func() string {
+						return "contact_broker"
+					},
 				})
 				contactBroker.Publish(contactService())
 				contactBroker.Start()
@@ -125,7 +132,10 @@ var _ = Describe("Kafka Transit", func() {
 				profileBroker = broker.New(&moleculer.Config{
 					LogLevel:       logLevel,
 					Transporter:    transporter,
-					RequestTimeout: time.Second,
+					RequestTimeout: tout,
+					DiscoverNodeID: func() string {
+						return "profile_broker"
+					},
 				})
 				profileBroker.Publish(profileService())
 				profileBroker.Start()

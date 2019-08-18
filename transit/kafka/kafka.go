@@ -5,6 +5,7 @@ package kafka
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -16,6 +17,7 @@ import (
 )
 
 const defaultKafkaVersion = "0.10.2.0"
+const kafkaTopicBadSymbols = "[+-]"
 
 type KafkaOptions struct {
 	conf        *sarama.Config
@@ -45,6 +47,7 @@ type KafkaTransporter struct {
 	subMut        sync.Mutex
 	wg            sync.WaitGroup
 	cancel        chan struct{}
+	badSymbols    *regexp.Regexp
 }
 
 func GetDefaultOptions() *KafkaOptions {
@@ -76,12 +79,18 @@ func CreateKafkaTransporter(options KafkaOptions) transit.Transport {
 
 	opts := kafkaOptions(options)
 
+	r, err := regexp.Compile(kafkaTopicBadSymbols)
+	if err != nil {
+		options.Logger.Fatalf("kafka transporter error: %s", err)
+	}
+
 	return &KafkaTransporter{
 		opts:          opts,
 		logger:        options.Logger,
 		serializer:    options.Serializer,
 		subscriptions: make(map[string]*KafkaSubscriber),
 		cancel:        make(chan struct{}),
+		badSymbols:    r,
 	}
 }
 
@@ -198,6 +207,12 @@ func (t *KafkaTransporter) Subscribe(command, nodeID string, handler transit.Tra
 	topic := t.topicName(command, nodeID)
 
 	t.logger.Debug("kafka.Subscribe(): command: ", command, " nodeID: ", nodeID)
+
+	if t.badSymbols.MatchString(topic) {
+		msg := fmt.Sprintf("kafka.Subscribe() error: Bad symbols in topic name '%s'. Don't use %s", topic, kafkaTopicBadSymbols)
+		t.logger.Warn(msg)
+		panic(errors.New(msg)) // panic?!
+	}
 
 	t.subMut.Lock()
 	defer t.subMut.Unlock()
