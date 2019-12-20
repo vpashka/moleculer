@@ -1,4 +1,4 @@
-module github.com/moleculer-go/moleculer
+module github.com/vpashka/moleculer
 
 go 1.12
 
