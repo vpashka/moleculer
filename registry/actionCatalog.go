@@ -115,9 +115,6 @@ func (actionCatalog *ActionCatalog) listByName() map[string][]ActionEntry {
 func (actionCatalog *ActionCatalog) Add(action service.Action, service *service.Service, local bool) {
 	entry := ActionEntry{service.NodeID(), &action, local, service, actionCatalog.logger}
 	name := action.FullName()
-	if service.Version() != "" {
-		name = service.Version() + "." + name
-	}
 	list, exists := actionCatalog.actions.Load(name)
 	if !exists {
 		list = []ActionEntry{entry}

@@ -194,10 +194,14 @@ func (serviceCatalog *ServiceCatalog) updateActions(serviceMap map[string]interf
 	var updatedActions []map[string]interface{}
 	var newActions, deletedActions []service.Action
 
+	actversion := service.ParseVersion(serviceMap["version"])
 	actions := serviceMap["actions"].(map[string]interface{})
 	for _, item := range actions {
 		action := item.(map[string]interface{})
 		name := action["name"].(string)
+		if actversion != "" {
+			name = actversion + "." + name
+		}
 		if serviceActionExists(name, current.Actions()) {
 			updatedActions = append(updatedActions, action)
 		} else {
